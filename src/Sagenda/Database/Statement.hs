@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TemplateHaskellQuotes #-}
 {-# LANGUAGE QuasiQuotes #-}
 
 module Sagenda.Database.Statement (
@@ -22,7 +22,7 @@ authenticateUserStatement = [maybeStatement|
 allUsersStatement :: Statement () (Vector User)
 allUsersStatement = dimap
     id
-    (fmap (\ (uid, name) -> PublicUser uid name))
+    (fmap $ uncurry PublicUser)
     [vectorStatement|
             SELECT id :: int4, name :: text
                 FROM users

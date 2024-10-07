@@ -3,7 +3,8 @@
 
 module Sagenda.Database.Statement (
     authenticateUserStatement,
-    allUsersStatement
+    allUsersStatement,
+    findUserByNameStatement
 ) where
 
 import Hasql.Statement (Statement)
@@ -26,4 +27,14 @@ allUsersStatement = dimap
     [vectorStatement|
             SELECT id :: int4, name :: text
                 FROM users
+        |]
+
+findUserByNameStatement :: Statement Text (Maybe User)
+findUserByNameStatement = dimap
+    id
+    (fmap $ uncurry PublicUser)
+    [maybeStatement|
+            SELECT id :: int4, name :: text
+                FROM users
+                WHERE users.name = $1 :: text
         |]

@@ -6,8 +6,9 @@ import qualified Web.Scotty as Scotty
 --import Network.HTTP.Types (status404)
 import Hasql.Connection (Connection)
 
-import Sagenda.Data.User (getAllUsers)
+import Sagenda.Service (getAllUsers)
 import Sagenda.Database (connectDatabase)
+
 
 getUsers :: Connection -> Scotty.ActionM ()
 getUsers connection = do

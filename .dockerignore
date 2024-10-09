@@ -1,0 +1,10 @@
+.stack-work
+dist-newstyle
+postgres-data
+sql
+.dockerignore
+.gitignore
+docker-compose.yml
+Dockerfile
+Sagenda.cabal
+TODO.md

@@ -1,6 +1,4 @@
-CREATE DATABASE "agenda";
-
-\c agenda;
+\c sagenda;
 
 CREATE TABLE "users" (
     "id" SERIAL PRIMARY KEY,

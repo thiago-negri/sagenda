@@ -1,10 +1,6 @@
 name:                Sagenda
 version:             0.1.0.0
 
-extra-source-files:
-- README.md
-- CHANGELOG.md
-
 dependencies:
 - rerebase
 - scotty

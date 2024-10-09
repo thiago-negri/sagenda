@@ -6,11 +6,11 @@ import Hasql.Connection (Settings, settings, Connection, acquire)
 
 connectionSettings :: Settings
 connectionSettings = settings host port user password database
-    where host = "localhost"
+    where host = "postgres"
           port = 5432
           user = "root"
           password = "!Letm3in!"
-          database = "agenda"
+          database = "sagenda"
 
 connectDatabase :: IO Connection
 connectDatabase = do

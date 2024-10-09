@@ -1,0 +1,3 @@
+- Add https://hackage.haskell.org/package/resource-pool
+- Add authorization middleware
+- Create our monad so we can store more state in requests

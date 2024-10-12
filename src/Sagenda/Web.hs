@@ -6,6 +6,8 @@ import qualified Web.Scotty as Scotty
 import Network.HTTP.Types (status404)
 import Hasql.Connection (Connection)
 
+import Sagenda.Data.User ()
+import Sagenda.Error ()
 import Sagenda.Service (getAllUsers, getUserByName)
 import Sagenda.Database (connectDatabase)
 
@@ -32,5 +34,7 @@ port = 3000
 
 webServer :: IO ()
 webServer = do
-    connection <- connectDatabase
-    Scotty.scotty port $ routes connection
+    connection' <- connectDatabase
+    case connection' of
+        Left e -> putStrLn $ "ERROR: Can't connect to database: " ++ show e
+        Right connection -> Scotty.scotty port $ routes connection

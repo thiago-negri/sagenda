@@ -9,6 +9,7 @@ dependencies:
 - aeson
 - hasql
 - hasql-th
+- utf8-string
 
 ghc-options:
 - -Wall

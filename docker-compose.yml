@@ -5,13 +5,13 @@ services:
       - ./sql/:/docker-entrypoint-initdb.d/
       - ./postgres-data:/var/lib/postgresql/data
     environment:
+      POSTGRES_USER: "sagenda-rw"
+      POSTGRES_PASSWORD: "sagenda-rw-secret"
       POSTGRES_DB: "sagenda"
-      POSTGRES_USER: "root"
-      POSTGRES_PASSWORD: "!Letm3in!"
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U root -d sagenda"]
+      test: ["CMD-SHELL", "pg_isready -U sagenda-rw -d sagenda"]
       interval: 10s
       retries: 5
       start_period: 30s
@@ -24,5 +24,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    environment:
+      DB_HOST: "postgres"
+      DB_PORT: "5432"
+      DB_USER: "sagenda-rw"
+      DB_PASSWORD: "sagenda-rw-secret"
+      DB_DATABASE: "sagenda"
     ports:
       - "3000:3000"

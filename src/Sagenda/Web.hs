@@ -10,6 +10,7 @@ import Sagenda.Data.User ()
 import Sagenda.Error ()
 import Sagenda.Service (getAllUsers, getUserByName)
 import Sagenda.Database (connectDatabase)
+import Sagenda.Auth (authMiddleware)
 
 getUsersH :: Connection -> Scotty.ActionM ()
 getUsersH connection = do
@@ -24,6 +25,7 @@ getUserByNameH connection name = do
 
 routes :: Connection -> Scotty.ScottyM ()
 routes connection = do
+    Scotty.middleware $ authMiddleware connection
     Scotty.get "/users" $ getUsersH connection
     Scotty.get "/users/:name" $ do
         name <- Scotty.captureParam "name"

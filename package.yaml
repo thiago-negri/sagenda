@@ -5,11 +5,12 @@ dependencies:
 - rerebase
 - scotty
 - http-types
-- text
 - aeson
 - hasql
 - hasql-th
 - utf8-string
+- wai
+- base64-bytestring
 
 ghc-options:
 - -Wall

@@ -15,13 +15,13 @@ import Sagenda.Error (AppError (DatabaseQueryError))
 
 selectAllUsers :: Connection -> ExceptT AppError IO [User]
 selectAllUsers connection = do
-    rows <- run' connection session
+    rows <- run' session connection
     return $ toList rows
     where session = statement () selectAllUsersS
 
-selectUserByName :: Connection -> Text -> ExceptT AppError IO (Maybe User)
-selectUserByName connection name = run' connection session
+selectUserByName :: Text -> Connection -> ExceptT AppError IO (Maybe User)
+selectUserByName name = run' session
     where session = statement name selectUserByNameS
 
-run' :: Connection -> Session a -> ExceptT AppError IO a
-run' c s = withExceptT DatabaseQueryError . ExceptT $ run s c
+run' :: Session a -> Connection -> ExceptT AppError IO a
+run' s c = withExceptT DatabaseQueryError . ExceptT $ run s c

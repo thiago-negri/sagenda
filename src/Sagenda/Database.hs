@@ -1,42 +1,77 @@
-module Sagenda.Database (connectDatabase) where
+module Sagenda.Database (
+    newDatabaseConnectionPool,
+    DatabasePool,
+    withDatabase
+) where
 
 import qualified Data.ByteString.UTF8 as BSU
-import Hasql.Connection (Settings, settings, Connection, acquire)
 
-import Sagenda.Error (AppError (MissingEnvVar, DatabaseConnectionError))
+import Data.Pool (
+        Pool, 
+        defaultPoolConfig, 
+        newPool, 
+        putResource, 
+        takeResource, 
+        destroyResource
+    )
+import qualified Hasql.Connection as HC
 
-connectDatabase :: IO (Either AppError Connection)
-connectDatabase = do
+import Sagenda.Error (
+        AppError (MissingEnvVar, DatabaseConnectionError, InvalidEnvVar)
+    )
+import Control.Error (note, failWithM)
+
+type DatabasePool = Pool (Either AppError HC.Connection)
+
+newDatabaseConnectionPool :: ExceptT AppError IO DatabasePool
+newDatabaseConnectionPool = do
     connectionSettings <- connectionSettingsEnv
-    either (return . Left) acquire' connectionSettings
+    lift . newPool $ defaultPoolConfig
+                            (acquire' connectionSettings)
+                            release'
+                            idleTimeInSeconds
+                            poolMaxResources
+    where idleTimeInSeconds = fifteenMinutes
+          fifteenMinutes = 15 * 60
+          -- poolMaxResources must not be smaller than numStripes
+          poolMaxResources = max numCapabilities 40
 
-connectionSettingsEnv :: IO (Either AppError Settings)
+withDatabase :: DatabasePool -> 
+                (HC.Connection -> ExceptT AppError IO a) -> 
+                ExceptT AppError IO a
+withDatabase pool f = ExceptT $ do
+    (connect, lpool) <- takeResource pool
+    case connect of
+        Left e -> do
+            destroyResource pool lpool connect
+            return (Left e)
+        Right conn -> do
+            v <- runExceptT $ f conn
+            putResource lpool connect
+            return v
+
+connectionSettingsEnv :: ExceptT AppError IO HC.Settings
 connectionSettingsEnv = do
-    host' <- getEnvBS "DB_HOST"
-    port' <- readEnv "DB_PORT"
-    user' <- getEnvBS "DB_USER"
-    password' <- getEnvBS "DB_PASSWORD"
-    database' <- getEnvBS "DB_DATABASE"
-    return $ unpackSettings host' port' user' password' database'
+    host <- getEnvBS "DB_HOST"
+    port <- readEnv "DB_PORT"
+    user <- getEnvBS "DB_USER"
+    password <- getEnvBS "DB_PASSWORD"
+    database <- getEnvBS "DB_DATABASE"
+    return $ HC.settings host port user password database
 
-getEnvBS :: String -> IO (Either AppError ByteString)
-getEnvBS = lookEnv (BSU.fromString <$>)
+getEnvBS :: String -> ExceptT AppError IO ByteString
+getEnvBS = lookEnv (return . BSU.fromString)
 
-readEnv :: Read a => String -> IO (Either AppError a)
-readEnv = lookEnv (readMaybe =<<)
+readEnv :: Read a => String -> ExceptT AppError IO a
+readEnv e = lookEnv (except . note (InvalidEnvVar e) . readMaybe) e
 
-lookEnv :: (Maybe String -> Maybe a) -> String -> IO (Either AppError a)
-lookEnv f e = lookupEnv e >>= maybe err (return . Right) . f
-    where err = return . Left $ MissingEnvVar e
+lookEnv :: (String -> ExceptT AppError IO a) -> String -> ExceptT AppError IO a
+lookEnv f e = do
+    v <- failWithM (MissingEnvVar e) $ lookupEnv e
+    f v
 
-unpackSettings :: Either AppError ByteString ->
-                  Either AppError Word16 ->
-                  Either AppError ByteString ->
-                  Either AppError ByteString ->
-                  Either AppError ByteString ->
-                  Either AppError Settings
-unpackSettings host' port' user' password' database' =
-    settings <$> host' <*> port' <*> user' <*> password' <*> database'
+acquire' :: HC.Settings -> IO (Either AppError HC.Connection)
+acquire' s = mapLeft DatabaseConnectionError <$> HC.acquire s
 
-acquire' :: Settings -> IO (Either AppError Connection)
-acquire' s = mapLeft DatabaseConnectionError <$> acquire s
+release' :: Either AppError HC.Connection -> IO ()
+release' = either mempty HC.release

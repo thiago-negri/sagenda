@@ -17,14 +17,15 @@ import qualified Data.ByteString.Base64 as BS64
 import qualified Data.ByteString.UTF8 as BSU8
 import qualified Data.Vault.Lazy as V
 import Control.Monad.Trans.Maybe (hoistMaybe)
-import Control.Monad.Trans.Except (throwE)
 import Crypto.BCrypt (validatePassword)
 
-import Sagenda.Context (SagendaContext (connection, userKey))
+import Sagenda.Context (SagendaContext (database, userKey))
 import Sagenda.Debug (debugLog)
 import Sagenda.Error (AppError (AuthError))
 import Sagenda.Database.Session (selectUserByName)
 import Sagenda.Data.User (userPassword)
+import Sagenda.Util (require)
+import Sagenda.Database (withDatabase)
 
 authMiddleware :: SagendaContext -> Middleware
 authMiddleware c wapp req send = do
@@ -33,8 +34,9 @@ authMiddleware c wapp req send = do
                             hoistMaybe . basicAuth $ requestHeaders req
         let name' = pack name
             password' = BSC8.pack password
-        user <- unpackMaybe (AuthError "Invalid credentials") $
-                selectUserByName conn name'
+        user <- withDatabase pool $
+                    require (AuthError "Invalid credentials") .
+                        selectUserByName name'
         let actualPassword = encodeUtf8 $ userPassword user
             correctPassword = validatePassword actualPassword password'
             vault' = V.insert userK user $ vault req
@@ -42,7 +44,7 @@ authMiddleware c wapp req send = do
             hoistMaybe . ifMaybe correctPassword $ req { vault = vault' }
     either handleAppError (`wapp` send) req'
     where userK = userKey c
-          conn = connection c
+          pool = database c
           handleAppError (AuthError e) = do
             debugLog $ show (AuthError e)
             send forbidden
@@ -64,9 +66,6 @@ basicAuth headers = do
 ifMaybe :: Bool -> a -> Maybe a
 ifMaybe False _ = Nothing
 ifMaybe True a = Just a
-
-unpackMaybe :: Monad m => e -> ExceptT e m (Maybe a) -> ExceptT e m a
-unpackMaybe e f = f >>= maybe (throwE e) return
 
 forbidden :: Response
 forbidden = responseBuilder status403 [] "Forbidden"

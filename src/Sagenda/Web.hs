@@ -5,12 +5,12 @@ module Sagenda.Web (webServer) where
 import qualified Web.Scotty as Scotty
 import Network.HTTP.Types (status404, status500)
 
-import Sagenda.Data.User (User, userId, userName, userToPublic)
+import Sagenda.Data.User (userId, userName, userToPublic)
 import Sagenda.Error (AppError)
-import Sagenda.Database (connectDatabase)
+import Sagenda.Database (withDatabase)
 import Sagenda.Auth (authMiddleware)
 import qualified Data.Vault.Lazy as V
-import Sagenda.Context (SagendaContext (connection, SagendaContext, userKey))
+import Sagenda.Context (SagendaContext (database, userKey), newContext)
 import Network.Wai (Request(vault))
 import Data.Text.Lazy (pack)
 import Data.Text (unpack)
@@ -30,15 +30,15 @@ notFound = do
 
 getUsersH :: SagendaContext -> Scotty.ActionM ()
 getUsersH c = do
-    users <- liftIO . runExceptT $ selectAllUsers conn
+    users <- liftIO . runExceptT . withDatabase pool $ selectAllUsers
     either logErrorAnd500 (Scotty.json . map userToPublic) users
-    where conn = connection c
+    where pool = database c
 
 getUserByNameH :: SagendaContext -> Text -> Scotty.ActionM ()
 getUserByNameH c name = do
-    user <- liftIO . runExceptT $ selectUserByName conn name
+    user <- liftIO . runExceptT . withDatabase pool $ selectUserByName name
     either logErrorAnd500 (maybe notFound (Scotty.json . userToPublic)) user
-    where conn = connection c
+    where pool = database c
 
 routes :: SagendaContext -> Scotty.ScottyM ()
 routes c = do
@@ -62,14 +62,11 @@ webServer = do
     debugLog "| SAGENDA |"
     debugLog "+---------+"
 
-    debugLog "Creating vault keys"
-    uKey <- V.newKey :: IO (V.Key User)
-
-    debugLog "Connecting to database"
-    connection' <- connectDatabase
-    case connection' of
-        Left e -> debugLog $ "ERROR: Can't connect to database: " ++ show e
-        Right conn -> do
+    contextE <- runExceptT newContext
+    case contextE of
+        Left e -> do
+            debugLog $ "Erro creating context: " ++ show e
+        Right context -> do
             debugLog "Starting web server"
-            Scotty.scotty port $ routes (SagendaContext uKey conn)
+            Scotty.scotty port $ routes context
             debugLog "Done"

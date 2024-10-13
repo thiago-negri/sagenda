@@ -8,11 +8,13 @@ dependencies:
 - aeson
 - hasql
 - hasql-th
+- resource-pool
 - utf8-string
 - wai
 - base64-bytestring
 - vault
 - bcrypt
+- errors
 
 ghc-options:
 - -Wall

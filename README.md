@@ -1,5 +1,12 @@
 # Sagenda
 
+## Running
+
+```sh
+docker-compose up --build
+```
+
+
 ## Building in Windows
 
 ```powershell

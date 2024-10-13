@@ -1,31 +1,31 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Sagenda.Data.User (
-    User (User, PublicUser),
+    User (User),
     userId,
     userName,
-    userPassword
+    userPassword,
+    userToPublic,
+    UserPublic (UserPublic),
+    userPublicId,
+    userPublicName
 ) where
 
 import Data.Aeson ((.=), ToJSON, object, toJSON)
 
-data User = User Int32 Text Text
-          | PublicUser Int32 Text
+data User = User {
+    userId :: Int32,
+    userName :: Text,
+    userPassword :: Text
+}
 
-instance ToJSON User where
-    toJSON (User uid name password) =
-        object ["id" .= uid, "name" .= name, "password" .= password]
-    toJSON (PublicUser uid name) =
-        object ["id" .= uid, "name" .= name]
+data UserPublic = UserPublic {
+    userPublicId :: Int32,
+    userPublicName :: Text
+}
 
-userId :: User -> Int32
-userId (User uid _ _) = uid
-userId (PublicUser uid _) = uid
+userToPublic :: User -> UserPublic
+userToPublic (User uid name _) = UserPublic uid name
 
-userName :: User -> Text
-userName (User _ name _) = name
-userName (PublicUser _ name) = name
-
-userPassword :: User -> Maybe Text
-userPassword (User _ _ p) = Just p
-userPassword _ = Nothing
+instance ToJSON UserPublic where
+    toJSON (UserPublic uid name) = object ["id" .= uid, "name" .= name]

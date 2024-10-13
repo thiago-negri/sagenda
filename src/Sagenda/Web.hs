@@ -5,7 +5,7 @@ module Sagenda.Web (webServer) where
 import qualified Web.Scotty as Scotty
 import Network.HTTP.Types (status404, status500)
 
-import Sagenda.Data.User (User, userId, userName)
+import Sagenda.Data.User (User, userId, userName, userToPublic)
 import Sagenda.Error (AppError)
 import Sagenda.Database (connectDatabase)
 import Sagenda.Auth (authMiddleware)
@@ -31,13 +31,13 @@ notFound = do
 getUsersH :: SagendaContext -> Scotty.ActionM ()
 getUsersH c = do
     users <- liftIO . runExceptT $ selectAllUsers conn
-    either logErrorAnd500 Scotty.json users
+    either logErrorAnd500 (Scotty.json . map userToPublic) users
     where conn = connection c
 
 getUserByNameH :: SagendaContext -> Text -> Scotty.ActionM ()
 getUserByNameH c name = do
     user <- liftIO . runExceptT $ selectUserByName conn name
-    either logErrorAnd500 (maybe notFound Scotty.json) user
+    either logErrorAnd500 (maybe notFound (Scotty.json . userToPublic)) user
     where conn = connection c
 
 routes :: SagendaContext -> Scotty.ScottyM ()

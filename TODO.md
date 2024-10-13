@@ -1,2 +1,1 @@
-- Encrypt user password in database
 - Add https://hackage.haskell.org/package/resource-pool or https://hackage.haskell.org/package/hasql-pool

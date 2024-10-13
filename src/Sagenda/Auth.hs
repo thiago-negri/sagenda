@@ -10,18 +10,21 @@ import Network.Wai (
     )
 import Network.HTTP.Types (status403, status500)
 import Network.HTTP.Types.Header (Header)
-import Data.Text (pack)
+import Data.Text (pack, encodeUtf8)
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as BSC8
 import qualified Data.ByteString.Base64 as BS64
 import qualified Data.ByteString.UTF8 as BSU8
 import qualified Data.Vault.Lazy as V
 import Control.Monad.Trans.Maybe (hoistMaybe)
 import Control.Monad.Trans.Except (throwE)
+import Crypto.BCrypt (validatePassword)
 
 import Sagenda.Context (SagendaContext (connection, userKey))
 import Sagenda.Debug (debugLog)
 import Sagenda.Error (AppError (AuthError))
-import Sagenda.Database.Session (selectUserByNameAndPassword)
+import Sagenda.Database.Session (selectUserByName)
+import Sagenda.Data.User (userPassword)
 
 authMiddleware :: SagendaContext -> Middleware
 authMiddleware c wapp req send = do
@@ -29,16 +32,23 @@ authMiddleware c wapp req send = do
         (name, password) <- maybeToExceptT (AuthError "Invalid authorization") $
                             hoistMaybe . basicAuth $ requestHeaders req
         let name' = pack name
-            password' = pack password
+            password' = BSC8.pack password
         user <- unpackMaybe (AuthError "Invalid credentials") $
-                selectUserByNameAndPassword conn name' password'
-        let vault' = V.insert userK user $ vault req
-        return $ req { vault = vault' }
+                selectUserByName conn name'
+        let actualPassword = encodeUtf8 $ userPassword user
+            correctPassword = validatePassword actualPassword password'
+            vault' = V.insert userK user $ vault req
+        maybeToExceptT (AuthError "Invalid credentials") $
+            hoistMaybe . ifMaybe correctPassword $ req { vault = vault' }
     either handleAppError (`wapp` send) req'
-    where handleAppError (AuthError e) = debugLog (show e) >> send forbidden
-          handleAppError e = debugLog (show e) >> send internalServerError
-          userK = userKey c
+    where userK = userKey c
           conn = connection c
+          handleAppError (AuthError e) = do
+            debugLog $ show (AuthError e)
+            send forbidden
+          handleAppError e = do
+            debugLog $ show e
+            send internalServerError
 
 basicAuth :: [Header] -> Maybe (String, String)
 basicAuth headers = do

@@ -6,5 +6,7 @@ CREATE TABLE "users" (
     "password" VARCHAR(255) NOT NULL
 );
 
+-- tnegri:a190c5df-bd09-4517-bb32-dc3230f1b604
 INSERT INTO "users" ("name", "password")
-    VALUES ('tnegri', 'a190c5df-bd09-4517-bb32-dc3230f1b604');
+    VALUES ('tnegri',
+            '$2a$12$KIEoGmu3sMrtsgKZN/lKb.Js9CBnqn58xi2GGuWhpKoJrXM1rAuMO');

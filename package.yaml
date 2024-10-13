@@ -12,6 +12,7 @@ dependencies:
 - wai
 - base64-bytestring
 - vault
+- bcrypt
 
 ghc-options:
 - -Wall

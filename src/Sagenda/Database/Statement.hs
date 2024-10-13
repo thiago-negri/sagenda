@@ -2,7 +2,6 @@
 {-# LANGUAGE QuasiQuotes #-}
 
 module Sagenda.Database.Statement (
-    selectUserIdByNameAndPasswordS,
     selectAllUsersS,
     selectUserByNameS
 ) where
@@ -10,31 +9,26 @@ module Sagenda.Database.Statement (
 import Hasql.Statement (Statement)
 import Hasql.TH (maybeStatement, vectorStatement)
 
-import Sagenda.Data.User (User (PublicUser))
-
-selectUserIdByNameAndPasswordS :: Statement (Text, Text) (Maybe Int32)
-selectUserIdByNameAndPasswordS = [maybeStatement|
-        SELECT id :: int4
-            FROM users
-            WHERE name = $1 :: text
-              AND password = $2 :: text
-    |]
+import Sagenda.Data.User (User (User))
 
 selectAllUsersS :: Statement () (Vector User)
 selectAllUsersS = dimap
     id
-    (fmap $ uncurry PublicUser)
+    (fmap userRow)
     [vectorStatement|
-            SELECT id :: int4, name :: text
+            SELECT id :: int4, name :: text, password :: text
                 FROM users
         |]
 
 selectUserByNameS :: Statement Text (Maybe User)
 selectUserByNameS = dimap
     id
-    (fmap $ uncurry PublicUser)
+    (fmap userRow)
     [maybeStatement|
-            SELECT id :: int4, name :: text
+            SELECT id :: int4, name :: text, password :: text
                 FROM users
                 WHERE users.name = $1 :: text
         |]
+
+userRow :: (Int32, Text, Text) -> User
+userRow (uid, name, password) = User uid name password

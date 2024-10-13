@@ -1,27 +1,24 @@
 module Sagenda.Service (getAllUsers, getUserByName, authUser) where
 
 import Hasql.Connection (Connection)
-import Hasql.Session (run)
+import Hasql.Session (run, Session)
 
 import Sagenda.Database.Session (allUsers, findUserByName, authenticateUser)
 import Sagenda.Data.User (User (PublicUser))
-import Control.Monad.Trans.Maybe (hoistMaybe)
+import Sagenda.Error (AppError (DatabaseQueryError))
 
-getAllUsers :: Connection -> IO [User]
+getAllUsers :: Connection -> ExceptT AppError IO [User]
 getAllUsers connection = do
-    -- FIXME(tnegri): Handle error
-    Right rows <- run allUsers connection
+    rows <- run' connection allUsers
     return $ toList rows
 
-getUserByName :: Connection -> Text -> MaybeT IO User
-getUserByName connection name = do
-    -- FIXME(tnegri): Handle error
-    Right row <- lift $ run (findUserByName name) connection
-    hoistMaybe row
+getUserByName :: Connection -> Text -> ExceptT AppError IO (Maybe User)
+getUserByName connection name = run' connection $ findUserByName name
 
-authUser :: Connection -> Text -> Text -> MaybeT IO User
+authUser :: Connection -> Text -> Text -> ExceptT AppError IO (Maybe User)
 authUser connection name password = do
-    -- FIXME(tnegri): Handle error
-    Right row <- lift $ run (authenticateUser name password) connection
-    uid <- hoistMaybe row
-    return $ PublicUser uid name
+    uid <- run' connection $ authenticateUser name password
+    return $ uid >>= \uuid' -> Just (PublicUser uuid' name)
+
+run' :: Connection -> Session a -> ExceptT AppError IO a
+run' s c = withExceptT DatabaseQueryError . ExceptT $ run c s

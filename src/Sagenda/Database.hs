@@ -27,7 +27,7 @@ readEnv = lookEnv (readMaybe =<<)
 
 lookEnv :: (Maybe String -> Maybe a) -> String -> IO (Either AppError a)
 lookEnv f e = lookupEnv e >>= maybe err (return . Right) . f
-    where err = return $ Left (MissingEnvVar e)
+    where err = return . Left $ MissingEnvVar e
 
 unpackSettings :: Either AppError ByteString ->
                   Either AppError Word16 ->

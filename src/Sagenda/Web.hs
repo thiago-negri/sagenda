@@ -3,10 +3,10 @@
 module Sagenda.Web (webServer) where
 
 import qualified Web.Scotty as Scotty
-import Network.HTTP.Types (status404)
+import Network.HTTP.Types (status404, status500)
 
 import Sagenda.Data.User (User, userId, userName)
-import Sagenda.Error ()
+import Sagenda.Error (AppError)
 import Sagenda.Service (getAllUsers, getUserByName)
 import Sagenda.Database (connectDatabase)
 import Sagenda.Auth (authMiddleware)
@@ -16,18 +16,27 @@ import Network.Wai (Request(vault))
 import Data.Text.Lazy (pack)
 import Data.Text (unpack)
 import Sagenda.Debug (debugLog)
-import Control.Monad.Trans.Maybe (runMaybeT)
+
+logErrorAnd500 :: AppError -> Scotty.ActionM ()
+logErrorAnd500 e = do
+    liftIO . debugLog $ show e
+    Scotty.status status500
+    Scotty.text "Internal Server Error"
+
+notFound :: Scotty.ActionM ()
+notFound = do
+    Scotty.status status404
+    Scotty.text "Not Found"
 
 getUsersH :: SagendaContext -> Scotty.ActionM ()
 getUsersH c = do
-    users <- liftIO $ getAllUsers (connection c)
-    Scotty.json users
+    users <- liftIO . runExceptT $ getAllUsers (connection c)
+    either logErrorAnd500 Scotty.json users
 
 getUserByNameH :: SagendaContext -> Text -> Scotty.ActionM ()
 getUserByNameH c name = do
-    user <- liftIO . runMaybeT $ getUserByName (connection c) name
-    maybe notFound Scotty.json user
-    where notFound = Scotty.status status404
+    user <- liftIO . runExceptT $ getUserByName (connection c) name
+    either logErrorAnd500 (maybe notFound Scotty.json) user
 
 routes :: SagendaContext -> Scotty.ScottyM ()
 routes c = do

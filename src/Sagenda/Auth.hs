@@ -19,9 +19,9 @@ import Control.Monad.Trans.Maybe (hoistMaybe)
 import Control.Monad.Trans.Except (throwE)
 
 import Sagenda.Context (SagendaContext (connection, userKey))
-import Sagenda.Service (authUser)
 import Sagenda.Debug (debugLog)
 import Sagenda.Error (AppError (AuthError))
+import Sagenda.Database.Session (selectUserByNameAndPassword)
 
 authMiddleware :: SagendaContext -> Middleware
 authMiddleware c wapp req send = do
@@ -31,7 +31,7 @@ authMiddleware c wapp req send = do
         let name' = pack name
             password' = pack password
         user <- unpackMaybe (AuthError "Invalid credentials") $
-                authUser conn name' password'
+                selectUserByNameAndPassword conn name' password'
         let vault' = V.insert userK user $ vault req
         return $ req { vault = vault' }
     either handleAppError (`wapp` send) req'

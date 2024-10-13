@@ -7,7 +7,6 @@ import Network.HTTP.Types (status404, status500)
 
 import Sagenda.Data.User (User, userId, userName)
 import Sagenda.Error (AppError)
-import Sagenda.Service (getAllUsers, getUserByName)
 import Sagenda.Database (connectDatabase)
 import Sagenda.Auth (authMiddleware)
 import qualified Data.Vault.Lazy as V
@@ -16,6 +15,7 @@ import Network.Wai (Request(vault))
 import Data.Text.Lazy (pack)
 import Data.Text (unpack)
 import Sagenda.Debug (debugLog)
+import Sagenda.Database.Session (selectAllUsers, selectUserByName)
 
 logErrorAnd500 :: AppError -> Scotty.ActionM ()
 logErrorAnd500 e = do
@@ -30,13 +30,15 @@ notFound = do
 
 getUsersH :: SagendaContext -> Scotty.ActionM ()
 getUsersH c = do
-    users <- liftIO . runExceptT $ getAllUsers (connection c)
+    users <- liftIO . runExceptT $ selectAllUsers conn
     either logErrorAnd500 Scotty.json users
+    where conn = connection c
 
 getUserByNameH :: SagendaContext -> Text -> Scotty.ActionM ()
 getUserByNameH c name = do
-    user <- liftIO . runExceptT $ getUserByName (connection c) name
+    user <- liftIO . runExceptT $ selectUserByName conn name
     either logErrorAnd500 (maybe notFound Scotty.json) user
+    where conn = connection c
 
 routes :: SagendaContext -> Scotty.ScottyM ()
 routes c = do

@@ -1,3 +1,2 @@
-- Add https://hackage.haskell.org/package/resource-pool
-- Add authorization middleware
-- Create our monad so we can store more state in requests
+- Encrypt user password in database
+- Add https://hackage.haskell.org/package/resource-pool or https://hackage.haskell.org/package/hasql-pool

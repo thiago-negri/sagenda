@@ -16,7 +16,7 @@ import Sagenda.Database.Statement (
 allUsers :: Session (Vector User)
 allUsers = statement () allUsersStatement
 
-authenticateUser :: Text -> Text -> Session (Maybe (Int32, Bool))
+authenticateUser :: Text -> Text -> Session (Maybe Int32)
 authenticateUser name password =
     statement (name, password) authenticateUserStatement
 

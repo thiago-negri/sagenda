@@ -4,22 +4,24 @@ import Hasql.Connection (Connection)
 import Hasql.Session (run)
 
 import Sagenda.Database.Session (allUsers, findUserByName, authenticateUser)
-import Sagenda.Data.User (User)
-    
+import Sagenda.Data.User (User (PublicUser))
+import Control.Monad.Trans.Maybe (hoistMaybe)
+
 getAllUsers :: Connection -> IO [User]
 getAllUsers connection = do
     -- FIXME(tnegri): Handle error
     Right rows <- run allUsers connection
     return $ toList rows
 
-getUserByName :: Connection -> Text -> IO (Maybe User)
+getUserByName :: Connection -> Text -> MaybeT IO User
 getUserByName connection name = do
     -- FIXME(tnegri): Handle error
-    Right row <- run (findUserByName name) connection
-    return row
+    Right row <- lift $ run (findUserByName name) connection
+    hoistMaybe row
 
-authUser :: Connection -> Text -> Text -> IO (Maybe (Int32, Bool))
+authUser :: Connection -> Text -> Text -> MaybeT IO User
 authUser connection name password = do
     -- FIXME(tnegri): Handle error
-    Right row <- run (authenticateUser name password) connection
-    return row
+    Right row <- lift $ run (authenticateUser name password) connection
+    uid <- hoistMaybe row
+    return $ PublicUser uid name

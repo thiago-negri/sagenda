@@ -12,12 +12,12 @@ import Hasql.TH (maybeStatement, vectorStatement)
 
 import Sagenda.Data.User (User (PublicUser))
 
-authenticateUserStatement :: Statement (Text, Text) (Maybe (Int32, Bool))
+authenticateUserStatement :: Statement (Text, Text) (Maybe Int32)
 authenticateUserStatement = [maybeStatement|
-        SELECT id :: int4,
-            (password = $2 :: text) :: bool
+        SELECT id :: int4
             FROM users
             WHERE name = $1 :: text
+              AND password = $2 :: text
     |]
 
 allUsersStatement :: Statement () (Vector User)

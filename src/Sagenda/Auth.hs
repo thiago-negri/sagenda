@@ -16,25 +16,26 @@ import Sagenda.Service (authUser)
 import Data.Text (pack)
 import qualified Data.Vault.Lazy as V
 import Sagenda.Context (SagendaContext (connection, userKey))
+import Network.HTTP.Types.Header (Header)
+import Sagenda.Debug (debugLog)
+import Control.Monad.Trans.Maybe (hoistMaybe)
 
 authMiddleware :: SagendaContext -> Middleware
 authMiddleware c wapp req send = do
-    let auth = basicAuth req
-    case auth of
-        Nothing -> send forbidden
-        Just (name, password) -> do
-            let name' = pack name
-                password' = pack password
-            user <- authUser conn name' password'
-            case user of
-                Nothing -> send forbidden
-                Just (_, False) -> send forbidden
-                Just (v, True) -> 
-                    let vault' = V.insert userK (v, name') (vault req)
-                        req' = req { vault = vault' }
-                     in wapp req' send
-    where conn = connection c
-          userK = userKey c
+    req' <- runExceptT $ do
+        (name, password) <- maybeToExceptT "Invalid authorization header" $
+                            hoistMaybe . basicAuth $ requestHeaders req
+        let name' = pack name
+            password' = pack password
+            conn = connection c
+        user <- maybeToExceptT "Invalid credentials" $
+                authUser conn name' password'
+        let userK = userKey c
+            vault' = V.insert userK user (vault req)
+        return $ req { vault = vault' }
+    either (\e -> debugLog e >> send forbidden)
+           (`wapp` send)
+           req'
 
 forbidden :: Response
 forbidden = responseBuilder status403 [] "Forbidden"
@@ -43,9 +44,9 @@ ifMaybe :: Bool -> a -> Maybe a
 ifMaybe False _ = Nothing
 ifMaybe True a = Just a
 
-basicAuth :: Request -> Maybe (String, String)
-basicAuth req = do
-    (_, header) <- find ((== "authorization") . fst) $ requestHeaders req
+basicAuth :: [Header] -> Maybe (String, String)
+basicAuth headers = do
+    (_, header) <- find ((== "authorization") . fst) headers
     let isBasic = "Basic " `BS.isPrefixOf` header
     authValue' <- ifMaybe isBasic (BS64.decode $ BS.drop 6 header)
     authValue <- BSU8.toString <$> rightToMaybe authValue'
